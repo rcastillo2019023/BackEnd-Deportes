@@ -6,10 +6,10 @@ const bcrypt = require("bcrypt-nodejs");
 const app = require('./app')
 
 mongoose.Promise = global.Promise;
-mongoose.connect('mongodb://localhost:27017/torneoDeportivo', { useNewUrlParser: true, useUnifiedTopology: true }).then(()=>{
+mongoose.connect('mongodb+srv://BackDB:BackDB@backend.j2rom.mongodb.net/myFirstDatabase?retryWrites=true&w=majority', { useNewUrlParser: true, useUnifiedTopology: true }).then(()=>{
   console.log('Se encuentra conectado a la base de datos');
  
-  app.listen(3000, function () {
+  app.listen(process.env.PORT || 3000, function () {
     console.log('El servidor esta arrancando en el puerto: 3000'); 
     var userModel = new User();
 
