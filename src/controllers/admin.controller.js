@@ -51,26 +51,18 @@ function editarUsuarios(req, res) {
   delete params.password;
 
   if (req.usuarios.rol === "rol_Admin") {
-    User.findById(usuarioID, (err, adminEncontrado) => {
+    User.findById(usuarioID, (err, usuarioEncontrado) => {
       if (err) return res.status(500).send({ mensaje: "Error interno" });
-      if (adminEncontrado) {
-        return res.status(500).send({
-          mensaje: "No puede editar porque es administrador",
-        });
-      } else {
+      if (usuarioEncontrado) {
         User.findByIdAndUpdate(
           { _id: usuarioID },
           params,
           { new: true },
           (err, usuarioActualizado) => {
             if (err) return res.status(500).send({ mensaje: "Error interno" });
-            if (usuarioActualizado.rol === "rol_Admin") {
+            if (usuarioActualizado) {
               return res.status(200).send({ usuarioActualizado });
-            } else {
-              return res
-                .status(500)
-                .send({ mensaje: "no se puede eliminar un administrador" });
-            }
+            } 
           }
         );
       }
@@ -83,21 +75,18 @@ function editarUsuarios(req, res) {
 function eliminarUsuario(req, res) {
   let usuarioID = req.params.idUsuario;
   if (req.usuarios.rol === "rol_Admin") {
-    User.findById(usuarioID, (err, adminEncontrado) => {
+    Liga.findOne({administradorLiga: usuarioID}, (err, usuarioEncontrado) => {
+      console.log(usuarioEncontrado)
       if (err) return res.status(500).send({ mensaje: "Error interno" });
-      if (adminEncontrado) {
+      if (usuarioEncontrado) {
         return res.status(500).send({
-          mensaje: "No puede elimniarlo porque este administrador",
+          mensaje: "No puede eliminar porque tiene una liga activa",
         });
       } else {
         User.findByIdAndDelete(usuarioID, (err, usuarioEliminado) => {
           if (err) return res.status(500).send({ mensaje: "Error interno" });
-          if (usuarioEliminado.rol === "rol_Usuario") {
+          if (usuarioEliminado) {
             return res.status(200).send({ usuarioEliminado });
-          } else {
-            return res.status(500).send({
-              mensaje: "No puede eliminar a un Administrador",
-            });
           }
         });
       }
@@ -125,11 +114,14 @@ function obtenerUsuarios(req, res) {
 
 }
 
+
 //esta funcion sirve para ver la ligas creadas por el usuario logueado
 function listarLigasAdmin(req, res) {
+  let idUsuario = req.params.idUsuario;
+
   //verifiacion si la ID del uusario en la ruta coincide con el usuario logueado
   if (req.usuarios.rol === "rol_Admin") {
-    Liga.find((err, ligaEncontrada) => {
+    Liga.findById(idUsuario,(err, ligaEncontrada) => {
       if (err) return res.status(500).send({ mensaje: "Error interno" });
       if (ligaEncontrada) {
         return res.status(500).send({ ligaEncontrada });
@@ -192,29 +184,19 @@ function eliminarLigaAdmin(req, res) {
   let idLiga = req.params.idLiga;
   if (req.usuarios.rol === "rol_Admin") {
     Liga.findOne(
-      idLiga,
-      (err, LigaEncontrado) => {
-        if (err)
-          return res
-            .status(500)
-            .send({ mensaje: "Error interno al compara IDs" });
+      idLiga, (err, LigaEncontrado) => {
+        if (err) return res.status(500).send({ mensaje: "Error interno al compara IDs" });
         if (LigaEncontrado._id === idLiga) {
           //verifica si el id que se mando en la ruta coincide con el usuario logueado
           Liga.findByIdAndDelete(idLiga, (err, ligaEliminado) => {
             if (err)
-              return res
-                .status(500)
-                .send({ mensaje: "Error interno al eliminar liga" });
+              return res.status(500).send({ mensaje: "Error interno al eliminar liga" });
             if (!ligaEliminado)
-              return res
-                .status(500)
-                .send({ mensaje: "No se pudo eliminar la liga" });
+              return res.status(500).send({ mensaje: "No se pudo eliminar la liga" });
             return res.status(200).send({ ligaEliminado });
           });
         } else {
-          return res
-            .status(500)
-            .send({ mensaje: "no puede eliminar una liga que no es tuya" });
+          return res.status(500).send({ mensaje: "no puede eliminar una liga que no es tuya" });
         }
       });
   } else {
@@ -226,7 +208,6 @@ function eliminarLigaAdmin(req, res) {
 
 function obtenerUsuarioId(req, res) {
   var idUsuario = req.params.idUsuario
-
   User.findById(idUsuario, (err, usuarioEncontrado) => {
       if (err) return res.status(500).send({ mensaje: 'Error en la peticion del Usuario' })
       if (!usuarioEncontrado) return res.status(500).send({ mensaje: 'Error en obtener los datos del Usuario' })

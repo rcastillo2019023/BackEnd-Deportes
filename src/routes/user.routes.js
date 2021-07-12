@@ -10,26 +10,24 @@ var api = express.Router();
 api.post("/register", userController.register);
 api.post("/login", userController.login);
 api.get(
-  "/perfil/:idUsuario",
+  "/perfil",
   authentication.ensureAuth,
   userController.obtenerPerfil
 );
 api.put(
-  "/editarCuenta/:idUsuario",
+  "/editarCuenta",
   authentication.ensureAuth,
   userController.editarCuenta
 );
 api.delete(
-  "/eliminarCuenta/:idUsuario",
+  "/eliminarCuenta",
   authentication.ensureAuth,
   userController.eliminarCuenta
 );
 
-
-
 //rutas sobre ligas
 api.post(
-  "/agregarLiga/:idUsuario",
+  "/agregarLiga",
   authentication.ensureAuth,
   userController.agregarLigas
 );
@@ -48,34 +46,37 @@ api.delete(
   authentication.ensureAuth,
   userController.eliminarLiga
 );
+
+api.get('/obtenerLigaId/:idLiga', userController.obtenerLigaId)
 //rutas sobre
 api.post(
-  "/agregarEquipos/:idLiga/:idUsuario",
+  "/agregarEquipos/:idLiga",
   authentication.ensureAuth,
   userController.agregarEquipo
 );
 
 api.get(
-  "/listarEquiposPorLiga/:idLiga",
-  authentication.ensureAuth,
-  userController.listarEquiposPorLiga
+  "/listarEquipos/:idLiga",
+  userController.listarEquipos
 );
 
 api.put(
-  "/editarEquipo/:idEquipo/:idLiga/:idUsuario",
+  "/editarEquipo/:idEquipo/:idLiga",
   authentication.ensureAuth,
   userController.editarEquipo
 );
 api.delete(
-  "/eliminarEquipo/:idEquipo/:idLiga/:idUsuario",
+  "/eliminarEquipo/:idEquipo/:idLiga",
   authentication.ensureAuth,
   userController.eliminarEquipo
 );
+api.get('/obtenerEquipoId/:idEquipo', userController.obtenerEquipoId)
 
+// puntos 
 api.post(
-  "/agregarEquipos/:idUsuario/:idEquipo1/:idEquipo2",
+  "/marcador/:idEquipo1/:idEquipo2",
   authentication.ensureAuth,
-  userController.agregarEquipo
+  userController.marcador
 );
 
 module.exports = api;

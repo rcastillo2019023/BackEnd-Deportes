@@ -3,10 +3,11 @@
 const User = require("../models/user.models");
 const Liga = require("../models/liga.models");
 const Equipo = require("../models/equipo.models");
+const Marcador = require("../models/marcador.models");
 const bcrypt = require("bcrypt-nodejs");
 const jwt = require("../services/jwt");
 
-//Funciones para usuarios normales
+//Funciones para usuarios 
 function login(req, res) {
   var params = req.body;
 
@@ -33,8 +34,7 @@ function login(req, res) {
       }
   })
 }
-
-
+//funcion para registar usuarios normales
 function register(req, res) {
   var userModel = new User();
   var params = req.body;
@@ -63,17 +63,10 @@ function register(req, res) {
     });
   }
 }
-
-// esta funcion sirve para cualquier tipo de usuario que esta loguado
+//Funcion para obtener la informacion del usuario logueado
 function obtenerPerfil(req, res) {
-  var idUsuario = req.params.idUsuario;
 
-  if (idUsuario != req.usuarios.sub) {
-    return res.status(500).send({
-      mensaje: "No posees los permisos necesarios para ver este Usuario.",
-    });
-  }
-  User.findById(idUsuario, (err, perfilEncontrado) => {
+  User.findById(req.usuarios.sub , (err, perfilEncontrado) => {
     if (err)
       return res
         .status(500)
@@ -87,44 +80,27 @@ function obtenerPerfil(req, res) {
 }
 // esta funcion solo sirve para el usuario normal que esta logueado
 function editarCuenta(req, res) {
-  var idUsuario = req.params.idUsuario;
   var params = req.body;
 
   delete params.rol;
-  if (idUsuario != req.usuarios.sub) {
-    return res.status(500).send({
-      mensaje: "No posees los permisos necesarios para actulizar este Usuario.",
-    });
-  }
-
-  User.findByIdAndUpdate(
-    idUsuario,
-    params,
-    { new: true },
+  User.findByIdAndUpdate( req.usuarios.sub, params, { new: true },
     (err, usuarioActualizado) => {
       if (err) return res.status(500).send({ mensaje: "Error en la peticion" });
       if (!usuarioActualizado)
-        return res
-          .status(500)
-          .send({ mensaje: "No se ha podido actualizar al Usuario" });
-
+        return res.status(500).send({ mensaje: "No se ha podido actualizar al Usuario" });
       return res.status(200).send({ usuarioActualizado });
     }
   );
 }
 //esta funcion solo sirve para el usuario normal que esta logueado
 function eliminarCuenta(req, res) {
-  let idUsuario = req.params.idUsuario;
-  Liga.findOne({ administradorLiga: idUsuario }, (err, usuarioEncontrado) => {
+  Liga.findOne({ administradorLiga: req.usuarios.sub }, (err, usuarioEncontrado) => {
     if (err) return res.status(500).send({ mensaje: "Error interno" });
     if (usuarioEncontrado) {
-      return res.status(500).send({
-        mensaje: "No puede elimniarlo porque este tiene una liga activa",
-      });
+      return res.status(500).send({mensaje: "No puede elimniarlo porque este tiene una liga activa", });
     } else {
       //verifica si el id que se mando en la ruta coincide con el usuario logueado
-      if (req.usuarios.sub === idUsuario) {
-        User.findByIdAndDelete(idUsuario, (err, usuarioEliminado) => {
+        User.findByIdAndDelete(req.usuarios.sub, (err, usuarioEliminado) => {
           if (err)
             return res
               .status(500)
@@ -135,111 +111,66 @@ function eliminarCuenta(req, res) {
               .send({ mensaje: "No se pudo eliminar el usuario" });
           return res.status(200).send({ usuarioEliminado });
         });
-      } else {
-        return res.status(500).send({
-          mensaje: "Esta tratando de eliminar un perfil que no es suyo",
-        });
-      }
     }
   });
 }
 
-
-
-//funciones de Ligas para usuarios normales
-
+//---------------------------------------funciones para ligas----------------------------------------------------------
 //esta funcion esta disponible para cualquier tipo de usuario
 function agregarLigas(req, res) {
-  let idUsuario = req.params.idUsuario;
   let params = req.body;
   let ligaModel = new Liga();
-  //se toaman los datos
+
   if (params.nombre && params.detalle) {
     ligaModel.nombre = params.nombre;
     ligaModel.detalle = params.detalle;
-    //busqueda del usuario que hizo la peticion
-    User.findById(idUsuario, (err, usuarioEncontrado) => {
-      console.log(usuarioEncontrado);
-      if (err)
-        return res
-          .status(500)
-          .send({ mensaje: "Error interno al buscar usuario" });
-      if (!usuarioEncontrado) {
-        return res.status(500).send({ mensaje: "El usuario no existe" });
-      } else {
-        //busqueda si exites una liga ya creado con el mismo nombre
-        Liga.find({ nombre: params.nombre }, (err, ligaEncontrado) => {
+        Liga.find({
+          $or: [{ nombre: ligaModel.nombre }],
+        }).exec((err, ligaEncontrado) => {
           if (err)
-            return res
-              .status(500)
-              .send({ mensaje: "Error interno al buscar liga" });
+            return res.status(500).send({ mensaje: "Error interno al buscar liga" });
           if (ligaEncontrado && ligaEncontrado.length >= 1) {
             return res.status(500).send({ mensaje: "La liga ya existe" });
           } else {
-            // se toma el id de la ruta y se pone como administrador de la liga creada
-            console.log("prueba 2 de busqueda", usuarioEncontrado);
-            ligaModel.administradorLiga = idUsuario;
+            ligaModel.administradorLiga = req.usuarios.sub;
             ligaModel.save((err, ligaAgregado) => {
               if (err)
-                return res.status(500).send({
-                  mensaje: "Error interno al agregar liga",
-                });
+                return res.status(500).send({mensaje: "Error interno al agregar liga",});
               if (!ligaAgregado)
-                return res.status(500).send({
-                  mensaje: "No se ha podido agregar el hotel",
-                });
+                return res.status(500).send({ mensaje: "No se ha podido agregar la liga",});
               return res.status(200).send({ ligaAgregado });
             });
           }
         });
       }
-    });
-  } else {
-    return res.status(500).send({
-      mensaje: "Llene todos los campos obligatorios",
-    });
-  }
 }
 //esta funcion sirve para ver la ligas creadas por el usuario logueado
 function listarLigas(req, res) {
-  let idUsuario = req.params.idUsuario;
-
   Liga.find({ administradorLiga: req.usuarios.sub }, (err, ligaEncontrada) => {
     if (err) return res.status(500).send({ mensaje: "Error interno" });
     if (ligaEncontrada) {
-      return res.status(500).send({ ligaEncontrada });
+      return res.status(200).send({ ligaEncontrada });
     } else {
       return res.status(500).send({
         mensaje: "No tienes ligas asignadas",
       });
     }
   });
-  /*} else {
-    return res.status(500).send({
-      mensaje: "Esta tratando de ver ligas que no son suyas",
-    });
-  }*/
 }
-//editar liga
-
+//editar liga por medio de la liga
 function editarLigas(req, res) {
   let idLiga = req.params.idLiga;
   let params = req.body;
   delete params._id;
   delete params.administradorLiga;
-  Liga.findOne(
+  Liga.find(
     { administradorLiga: req.usuarios.sub },
     (err, LigaEncontrado) => {
       if (err)
-        return res
-          .status(500)
-          .send({ mensaje: "Error interno al compara IDs" });
-      if (LigaEncontrado._id === idLiga) {
+        return res.status(500).send({ mensaje: "Error interno al compara IDs" });
+      if (LigaEncontrado) {
         Liga.findByIdAndUpdate(
-          { _id: idLiga },
-          params,
-          { new: true },
-          (err, LigaActualizado) => {
+          { _id: idLiga }, params,{ new: true },(err, LigaActualizado) => {
             if (err) return res.status(500).send({ mensaje: "Error interno" });
             if (LigaActualizado) {
               return res.status(200).send({ LigaActualizado });
@@ -249,61 +180,51 @@ function editarLigas(req, res) {
           }
         );
       } else {
-        return res
-          .status(500)
-          .send({ mensaje: "no puedes editar una liga que no es tuya" });
+        return res.status(500).send({ mensaje: "no puedes editar una liga que no es tuya" });
       }
-    }
-  );
-
+    });
 }
-//eliminar liga para usuarios
+//eliminar liga por medio de la id
 function eliminarLiga(req, res) {
   let idLiga = req.params.idLiga;
 
-  Liga.findOne(
+  Liga.find(
     { administradorLiga: req.usuarios.sub },
     (err, LigaEncontrado) => {
-      if (err)
-        return res
-          .status(500)
-          .send({ mensaje: "Error interno al compara IDs" });
-      if (LigaEncontrado._id === idLiga) {
-        //verifica si el id que se mando en la ruta coincide con el usuario logueado
+      if (err) return res.status(500).send({ mensaje: "Error interno al compara IDs" });
+      if (LigaEncontrado) {
         Liga.findByIdAndDelete(idLiga, (err, ligaEliminado) => {
-          if (err)
-            return res
-              .status(500)
-              .send({ mensaje: "Error interno al eliminar liga" });
-          if (!ligaEliminado)
-            return res
-              .status(500)
-              .send({ mensaje: "No se pudo eliminar la liga" });
+          if (err) return res.status(500).send({ mensaje: "Error interno al eliminar liga" });
+          if (!ligaEliminado){
+            return res.status(500).send({ mensaje: "No se pudo eliminar la liga" });
+          }
           return res.status(200).send({ ligaEliminado });
         });
       } else {
-        return res
-          .status(500)
-          .send({ mensaje: "no puede eliminar una liga que no es tuya" });
+        return res.status(500).send({ mensaje: "no puede eliminar una liga que no es tuya" });
       }
     }
   );
 }
+//funcion para obtener una liga por su id
+function obtenerLigaId(req, res) {
+  var idLiga = req.params.idLiga
+  Liga.findById(idLiga, (err, LigaEncontrado) => {
+      if (err) return res.status(500).send({ mensaje: 'Error en la peticion del Usuario' })
+      if (!LigaEncontrado) return res.status(500).send({ mensaje: 'Error en obtener los datos del la liga' })
+      return res.status(200).send({ LigaEncontrado })
+  })
+}
 
-//funciones de equipos para usuarios normales
-
+//----------------------------------------funciones de equipos--------------------------------------------------
 //esta funcion esta disponible para cualquier tipo de usuario
 function agregarEquipo(req, res) {
   var EquipoModel = new Equipo();
   let params = req.body;
   let idLiga = req.params.idLiga;
-  let idUsuario = req.params.idUsuario;
   delete params.puntos;
   delete params.partidos
 
-  if (idUsuario != req.usuarios.sub) {
-    return res.status(500).send({ mensaje: "No tiene permiso de agregar equipos " });
-  } else {
     Equipo.find(
       { Liga: idLiga },
       (err, numeroEquipos) => {
@@ -353,21 +274,19 @@ function agregarEquipo(req, res) {
           }
         }
       });
-  }
 }
-
 //esta funcion sirve para ver la ligas creadas por el usuario logueado
-function listarEquiposPorLiga(req, res) {
+function listarEquipos(req, res){
   let idLiga = req.params.idLiga;
   //verifiacion si la ID del uusario en la ruta coincide con el usuario logueado
   Liga.findById(idLiga, (err, LigaEncontrada) => {
     if (err) return res.status(500).send({ mensaje: "Error interno al buscar liga" });
     console.log(LigaEncontrada)
     if (LigaEncontrada) {
-      Equipo.find({ Liga: LigaEncontrada._id }, (err, equipoEncontrado) => {
+      Equipo.find({ Liga: idLiga }, (err, equipoEncontrado) => {
         if (err) return res.status(500).send({ mensaje: "Error interno al buscar equipo" });
         if (equipoEncontrado) {
-          return res.status(500).send({ equipoEncontrado });
+          return res.status(200).send({ equipoEncontrado });
         } else {
           return res.status(500).send({ mensaje: "No se encontraron equipos" });
         }
@@ -377,11 +296,9 @@ function listarEquiposPorLiga(req, res) {
     }
   });
 }
-//editar liga
-
+//editar equipo por medio de la Id
 function editarEquipo(req, res) {
   let idLiga = req.params.idLiga;
-  let idUsuario = req.params.idUsuario;
   let idEquipo = req.params.idEquipo;
   let params = req.body;
   delete params._id;
@@ -389,9 +306,6 @@ function editarEquipo(req, res) {
   delete params.partidos
   delete params.Liga;
 
-  if (idUsuario != req.usuarios.sub) {
-    return res.status(500).send({ mensaje: "no tiene permiso para editar equipos" });
-  } else {
     Equipo.find(
       { Liga: idLiga },
       (err, EquipoEncontrado) => {
@@ -399,10 +313,7 @@ function editarEquipo(req, res) {
           return res.status(500).send({ mensaje: "Error interno al compara IDs" });
         if (EquipoEncontrado) {
           Equipo.findByIdAndUpdate(
-            { _id: idEquipo },
-            params,
-            { new: true },
-            (err, EquipoActualizado) => {
+            idEquipo ,params,{ new: true },(err, EquipoActualizado) => {
               if (err) return res.status(500).send({ mensaje: "Error interno" });
               if (EquipoActualizado) {
                 return res.status(200).send({ EquipoActualizado });
@@ -412,18 +323,12 @@ function editarEquipo(req, res) {
             });
         }
       });
-  }
-
 } 
-//eliminar liga para usuarios
+//eliminar equipo por medio de la id
 function eliminarEquipo(req, res) {
   let idEquipo = req.params.idEquipo;
-  let idUsuario = req.params.idUsuario;
   let idLiga = req.params.idLiga;
 
-  if (idUsuario != req.usuarios.sub) {
-    return res.status(500).send({ mensaje: "no tiene permiso para editar equipos" });
-  } else {
     Equipo.find(
       { Liga: idLiga },
       (err, EquipoEncontrado) => {
@@ -450,25 +355,37 @@ function eliminarEquipo(req, res) {
             .send({ mensaje: "no existe el equipo" });
         }
       });
-  }
 }
+//esta funcion sirve para ver la ligas creadas por el usuario logueado
+
+//funcion para obtener una liga por su id
+function obtenerEquipoId(req, res) {
+  var idEquipo = req.params.idEquipo
+  Equipo.findById(idEquipo, (err, equipoEncontrado) => {
+      if (err) return res.status(500).send({ mensaje: 'Error en la peticion del Usuario' })
+      if (!equipoEncontrado) {return res.status(500).send({ mensaje: 'Error en obtener los datos del Equipo' })
+  }else{
+      return res.status(200).send({ equipoEncontrado })
+  }
+  })
+}
+
 
 function marcador(req, res) {
   var marcador = new Marcador();
   var params = req.body;
-  var idUsuario = req.params.idUsuario;
   var Equipo1 = req.params.idEquipo1;
   var Equipo2 = req.params.idEquipo2;
   
-  if (idUsuario != req.usuarios.sub) {
     Equipo.findById(Equipo1, (err, equipoEncontrado1) => {
       if (err) {
         res.status(500).send({ message: 'Error' })
       } else if (equipoEncontrado1) {
-        Liga.findById(Equipo2, (err, equipoEncontrado2) => {
+        Equipo.findById(Equipo2, (err, equipoEncontrado2) => {
           if (err) {
             res.status(500).send({ message: 'Error' })
           } else if (equipoEncontrado2) {
+
             if (params.jornada && params.goles1 && params.goles2) {
 
               if (params.goles1 < 0 || params.goles2 < 0 || params.jornada < 0) {
@@ -549,7 +466,6 @@ function marcador(req, res) {
         res.status(500).send({ message: 'No se encuentra el equipo ' })
       }
     })
-  }
 }
 
 
@@ -558,7 +474,6 @@ function marcador(req, res) {
 module.exports = {
   register,
   login,
-
   obtenerPerfil,
   editarCuenta,
   eliminarCuenta,
@@ -567,8 +482,10 @@ module.exports = {
   editarLigas,
   eliminarLiga,
   agregarEquipo,
-  listarEquiposPorLiga,
+  listarEquipos,
   editarEquipo,
   eliminarEquipo,
+  obtenerLigaId,
+  obtenerEquipoId,
   marcador
 };

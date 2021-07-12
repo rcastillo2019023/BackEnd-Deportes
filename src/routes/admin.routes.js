@@ -35,7 +35,7 @@ api.get('/obtenerUsuarioId/:idUsuario', adminController.obtenerUsuarioId);
 //rutas crud ligas
 
 api.get(
-  "/listarLigasAdmin",
+  "/listarLigasAdmin/:idUsuario",
   authentication.ensureAuth,
   adminController.listarLigasAdmin
 );

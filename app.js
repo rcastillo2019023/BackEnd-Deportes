@@ -25,5 +25,3 @@ app.use("/api", admin_Routes);
 
 //Exportar
 module.exports=app;
-
-module.exports = app;
